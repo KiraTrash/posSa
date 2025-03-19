@@ -11,6 +11,29 @@ const Sidebar = ({ onViewChange }) => {
   return (
     <aside className="sidebar">
       <h2>Menú</h2>
+
+      {/* Botón de Inicio */}
+      <button
+        onClick={() => handleMenuItemClick("dashboard")} // Navegar al Dashboard
+        style={{
+          width: "100%",
+          background: "#3498db",
+          color: "#fff",
+          border: "none",
+          padding: "10px",
+          borderRadius: "5px",
+          cursor: "pointer",
+          fontSize: "14px",
+          marginBottom: "10px",
+          transition: "background 0.3s ease",
+        }}
+        onMouseEnter={(e) => (e.target.style.background = "#2980b9")}
+        onMouseLeave={(e) => (e.target.style.background = "#3498db")}
+      >
+        Inicio
+      </button>
+
+      {/* Lista de opciones del menú */}
       <ul style={{ listStyle: "none", padding: 0 }}>
         {[
           "Cobros",
@@ -36,6 +59,8 @@ const Sidebar = ({ onViewChange }) => {
           </li>
         ))}
       </ul>
+
+      {/* Sección de contacto */}
       <div style={{ marginTop: "20px", fontSize: "14px" }}>
         <p>Contacto:</p>
         <a
