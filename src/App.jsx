@@ -5,6 +5,7 @@ import Main from "./components/Main";
 import Footer from "./components/Footer";
 import Dashboard from "./components/Dashboard"; // Importa el componente Dashboard
 import Cobros from "./components/Cobros"; // Importa el componente Cobros
+import Entradas from "./components/Entradas"; // Importa el componente Entradas
 import "./styles.css";
 
 const App = () => {
@@ -23,6 +24,8 @@ const App = () => {
         return <Dashboard />;
       case "cobros":
         return <Cobros />;
+      case "entradas":
+        return <Entradas />; // Vista de Entradas
       default:
         return <Dashboard />;
     }
@@ -31,8 +34,7 @@ const App = () => {
   return (
     <div className="grid-container">
       <Header />
-      <Sidebar onViewChange={handleViewChange} />{" "}
-      {/* Pasamos la función para cambiar la vista */}
+      <Sidebar onViewChange={handleViewChange} /> {/* Pasamos la función para cambiar la vista */}
       <Main>{renderView()}</Main> {/* Renderizamos la vista actual */}
       <Footer />
     </div>
