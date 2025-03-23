@@ -35,29 +35,24 @@ const Sidebar = ({ onViewChange }) => {
 
       {/* Lista de opciones del menú */}
       <ul style={{ listStyle: "none", padding: 0 }}>
-        {[
-          "Cobros",
-          "Entradas",
-          "Salidas",
-          "Facturación",
-          "Inventario",
-          "Usuario",
-        ].map((item, index) => (
-          <li
-            key={index}
-            style={{
-              padding: "10px 0",
-              borderBottom: "1px solid #34495e",
-              cursor: "pointer",
-              transition: "background 0.3s ease",
-            }}
-            onClick={() => handleMenuItemClick(item)} // Cambiar la vista al hacer clic
-            onMouseEnter={(e) => (e.target.style.background = "#34495e")}
-            onMouseLeave={(e) => (e.target.style.background = "transparent")}
-          >
-            {item}
-          </li>
-        ))}
+        {["Cobros", "Entradas", "Salidas", "Inventario", "Usuario"].map(
+          (item, index) => (
+            <li
+              key={index}
+              style={{
+                padding: "10px 0",
+                borderBottom: "1px solid #34495e",
+                cursor: "pointer",
+                transition: "background 0.3s ease",
+              }}
+              onClick={() => handleMenuItemClick(item)} // Cambiar la vista al hacer clic
+              onMouseEnter={(e) => (e.target.style.background = "#34495e")}
+              onMouseLeave={(e) => (e.target.style.background = "transparent")}
+            >
+              {item}
+            </li>
+          )
+        )}
       </ul>
 
       {/* Sección de contacto */}
