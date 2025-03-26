@@ -48,3 +48,26 @@ body {
   text-align: center;
   font-size: 12px; /* Tamaño de fuente reducido */
 }
+
+/* inventario */
+/* styles.css */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+}
+
+th, td {
+  padding: 10px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+th {
+  background-color: #34495e;
+  color: #ecf0f1;
+}
+
+tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
