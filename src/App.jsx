@@ -1,41 +1,36 @@
-import React, { useState } from "react";
-import Header from "./components/Header";
-import Sidebar from "./components/Sidebar";
-import Main from "./components/Main";
-import Footer from "./components/Footer";
-import Dashboard from "./components/Dashboard"; // Importa el componente Dashboard
-import Cobros from "./components/Cobros"; // Importa el componente Cobros
-import Entradas from "./components/Entradas"; // Importa el componente Entradas
-import "./styles.css";
+import React, { useState } from 'react';
+import Header from './components/Header';
+import Sidebar from './components/Sidebar';
+import Main from './components/Main';
+import Footer from './components/Footer';
+import Dashboard from './components/Dashboard';
+import Cobros from './components/Cobros';
+import Entradas from './components/Entradas';
+import Inventario from './components/Inventario';  // ← Importación correcta
+import './styles.css';
 
 const App = () => {
-  // Estado para controlar la vista actual
-  const [currentView, setCurrentView] = useState("dashboard"); // Por defecto, mostramos el Dashboard
+  const [currentView, setCurrentView] = useState('dashboard');
 
-  // Función para cambiar la vista
   const handleViewChange = (view) => {
-    setCurrentView(view);
+    setCurrentView(view.toLowerCase());
   };
 
-  // Renderizar el componente correspondiente
   const renderView = () => {
-    switch (currentView) {
-      case "dashboard":
-        return <Dashboard />;
-      case "cobros":
-        return <Cobros />;
-      case "entradas":
-        return <Entradas />; // Vista de Entradas
-      default:
-        return <Dashboard />;
+    switch(currentView) {
+      case 'dashboard': return <Dashboard />;
+      case 'cobros': return <Cobros />;
+      case 'entradas': return <Entradas />;
+      case 'inventario': return <Inventario />;
+      default: return <Dashboard />;
     }
   };
 
   return (
     <div className="grid-container">
       <Header />
-      <Sidebar onViewChange={handleViewChange} /> {/* Pasamos la función para cambiar la vista */}
-      <Main>{renderView()}</Main> {/* Renderizamos la vista actual */}
+      <Sidebar onViewChange={handleViewChange} />
+      <Main>{renderView()}</Main>
       <Footer />
     </div>
   );
