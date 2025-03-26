@@ -1,17 +1,40 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 const Cobros = () => {
-  // Estado para manejar los productos agregados
   const [products, setProducts] = useState([]);
   const [total, setTotal] = useState(0);
 
-  // Estado para el formulario de agregar productos
   const [productId, setProductId] = useState("");
   const [productName, setProductName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [price, setPrice] = useState(0);
 
-  // Función para agregar un producto
+  // Función para buscar un producto por ID
+  const fetchProduct = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/productos/${id}`);
+      if (!response.ok) {
+        throw new Error("Producto no encontrado");
+      }
+      const data = await response.json();
+      setProductName(data.nombre); // Asume que el campo en la DB es "nombre"
+      setPrice(data.precio); // Asume que el campo en la DB es "precio"
+    } catch (error) {
+      console.error(error);
+      alert("Producto no encontrado");
+      setProductId("");
+      setProductName("");
+      setPrice(0);
+    }
+  };
+
+  // Efecto para buscar el producto cuando el ID cambia
+  useEffect(() => {
+    if (productId) {
+      fetchProduct(productId);
+    }
+  }, [productId]);
+
   const addProduct = (e) => {
     e.preventDefault();
 
@@ -23,20 +46,15 @@ const Cobros = () => {
       total: parseInt(quantity) * parseFloat(price),
     };
 
-    // Agregar el producto a la lista
     setProducts([...products, newProduct]);
-
-    // Actualizar el total general
     setTotal(total + newProduct.total);
 
-    // Limpiar el formulario
     setProductId("");
     setProductName("");
     setQuantity(1);
     setPrice(0);
   };
 
-  // Función para finalizar el cobro
   const handleCheckout = () => {
     alert(`Cobro realizado por un total de $${total.toFixed(2)}`);
     setProducts([]);
@@ -47,7 +65,6 @@ const Cobros = () => {
     <div>
       <h2>Punto de Venta</h2>
 
-      {/* Formulario para agregar productos */}
       <form onSubmit={addProduct} style={{ marginBottom: "20px" }}>
         <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
           <input
@@ -62,9 +79,8 @@ const Cobros = () => {
             type="text"
             placeholder="Nombre del Producto"
             value={productName}
-            onChange={(e) => setProductName(e.target.value)}
-            required
-            style={{ padding: "5px", flex: 2 }}
+            readOnly
+            style={{ padding: "5px", flex: 2, backgroundColor: "#f0f0f0" }}
           />
           <input
             type="number"
@@ -79,10 +95,8 @@ const Cobros = () => {
             type="number"
             placeholder="Precio"
             value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            step="0.01"
-            required
-            style={{ padding: "5px", flex: 1 }}
+            readOnly
+            style={{ padding: "5px", flex: 1, backgroundColor: "#f0f0f0" }}
           />
           <button
             type="submit"
