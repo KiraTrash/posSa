@@ -3,40 +3,49 @@ import React, { useState, useEffect } from "react";
 const Cobros = () => {
   const [products, setProducts] = useState([]);
   const [total, setTotal] = useState(0);
-
   const [productId, setProductId] = useState("");
   const [productName, setProductName] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [price, setPrice] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
 
-  // Función para buscar un producto por ID
-  const fetchProduct = async (id) => {
+  // Buscar productos por código o nombre
+  const searchProducts = async (query) => {
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
     try {
-      const response = await fetch(`http://localhost:5000/api/productos/${id}`);
-      if (!response.ok) {
-        throw new Error("Producto no encontrado");
-      }
+      const response = await fetch(`http://localhost:5000/api/productos/buscar?query=${query}`);
       const data = await response.json();
-      setProductName(data.nombre); // Asume que el campo en la DB es "nombre"
-      setPrice(data.precio); // Asume que el campo en la DB es "precio"
+      setSearchResults(data);
     } catch (error) {
-      console.error(error);
-      alert("Producto no encontrado");
-      setProductId("");
-      setProductName("");
-      setPrice(0);
+      console.error("Error buscando productos:", error);
     }
   };
 
-  // Efecto para buscar el producto cuando el ID cambia
+  // Manejar cambio en el campo de búsqueda
   useEffect(() => {
-    if (productId) {
-      fetchProduct(productId);
-    }
-  }, [productId]);
+    const timer = setTimeout(() => {
+      searchProducts(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
+  // Seleccionar producto de los resultados
+  const selectProduct = (product) => {
+    setProductId(product.codigo_barras);
+    setProductName(product.nombre);
+    setPrice(product.precio);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  // Agregar producto al carrito
   const addProduct = (e) => {
     e.preventDefault();
+    if (!productId || !productName) return;
 
     const newProduct = {
       id: productId,
@@ -48,11 +57,16 @@ const Cobros = () => {
 
     setProducts([...products, newProduct]);
     setTotal(total + newProduct.total);
+    resetForm();
+  };
 
+  // Resetear formulario
+  const resetForm = () => {
     setProductId("");
     setProductName("");
     setQuantity(1);
     setPrice(0);
+    setSearchQuery("");
   };
 
   const handleCheckout = () => {
@@ -67,14 +81,43 @@ const Cobros = () => {
 
       <form onSubmit={addProduct} style={{ marginBottom: "20px" }}>
         <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
-          <input
-            type="text"
-            placeholder="ID del Producto"
-            value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            required
-            style={{ padding: "5px", flex: 1 }}
-          />
+          <div style={{ flex: 1, position: "relative" }}>
+            <input
+              type="text"
+              placeholder="Buscar por código o nombre"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ padding: "5px", width: "100%" }}
+            />
+            {searchResults.length > 0 && (
+              <ul style={{
+                position: "absolute",
+                zIndex: 100,
+                width: "100%",
+                backgroundColor: "#fff",
+                border: "1px solid #ddd",
+                maxHeight: "200px",
+                overflowY: "auto",
+                marginTop: "2px",
+                padding: 0,
+                listStyle: "none"
+              }}>
+                {searchResults.map((product) => (
+                  <li 
+                    key={product.codigo_barras}
+                    onClick={() => selectProduct(product)}
+                    style={{
+                      padding: "8px",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #eee"
+                    }}
+                  >
+                    {product.nombre} - ${product.precio} (Código: {product.codigo_barras})
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <input
             type="text"
             placeholder="Nombre del Producto"
