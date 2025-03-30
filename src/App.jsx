@@ -1,3 +1,4 @@
+// App.jsx (actualizado)
 import React, { useState } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -6,7 +7,8 @@ import Footer from './components/Footer';
 import Dashboard from './components/Dashboard';
 import Cobros from './components/Cobros';
 import Entradas from './components/Entradas';
-import Inventario from './components/Inventario';  // ← Importación correcta
+import Salidas from './components/Salidas'; // Nuevo
+import Inventario from './components/Inventario';  
 import './styles.css';
 
 const App = () => {
@@ -21,6 +23,7 @@ const App = () => {
       case 'dashboard': return <Dashboard />;
       case 'cobros': return <Cobros />;
       case 'entradas': return <Entradas />;
+      case 'salidas': return <Salidas />; // Nuevo
       case 'inventario': return <Inventario />;
       default: return <Dashboard />;
     }
