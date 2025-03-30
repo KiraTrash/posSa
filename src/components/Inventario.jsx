@@ -15,7 +15,8 @@ const Inventario = () => {
         
         const productosFormateados = data.map(producto => ({
           ...producto,
-          precio: Number(producto.precio) || 0
+          precio: Number(producto.precio) || 0,
+          stock: Number(producto.stock) || 0
         }));
         
         setProductos(productosFormateados);
@@ -31,22 +32,29 @@ const Inventario = () => {
 
   const filteredProductos = productos.filter(producto =>
     producto.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (producto.codigo_barras && producto.codigo_barras.includes(searchTerm))
+    (producto.codigo_barras && producto.codigo_barras.toString().includes(searchTerm))
   );
+
+  const getStockLevel = (stock) => {
+    if (stock > 20) return 'high';
+    if (stock > 5) return 'medium';
+    return 'low';
+  };
 
   if (loading) return <div className="loading">Cargando inventario...</div>;
   if (error) return <div className="error">Error: {error}</div>;
 
   return (
     <div className="inventario-container">
-      <h2>Inventario</h2>
+      <h2 className="section-title">Inventario</h2>
       
-      <div className="search-bar">
+      <div className="inventario-search">
         <input
           type="text"
           placeholder="Buscar por nombre o código..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          className="search-input"
         />
       </div>
       
@@ -62,20 +70,24 @@ const Inventario = () => {
         </thead>
         <tbody>
           {filteredProductos.length > 0 ? (
-            filteredProductos.map((producto, index) => (
-              <tr 
-                key={producto.codigo_barras || index} 
-                className={index % 2 === 0 ? "even-row" : "odd-row"}
-              >
-                <td>{producto.codigo_barras}</td>
-                <td>{producto.nombre}</td>
-                <td>${producto.precio.toFixed(2)}</td>
-                <td className={producto.stock < 10 ? "low-stock" : ""}>
-                  {producto.stock}
-                </td>
-                <td>{producto.categoria}</td>
-              </tr>
-            ))
+            filteredProductos.map((producto, index) => {
+              const stockLevel = getStockLevel(producto.stock);
+              return (
+                <tr 
+                  key={producto.codigo_barras || index} 
+                  className={index % 2 === 0 ? "even-row" : "odd-row"}
+                >
+                  <td>{producto.codigo_barras}</td>
+                  <td>{producto.nombre}</td>
+                  <td>${producto.precio.toFixed(2)}</td>
+                  <td className={`stock-${stockLevel}`}>
+                    <span className={`stock-indicator stock-${stockLevel}`} />
+                    {producto.stock}
+                  </td>
+                  <td>{producto.categoria}</td>
+                </tr>
+              );
+            })
           ) : (
             <tr>
               <td colSpan="5" className="no-results">

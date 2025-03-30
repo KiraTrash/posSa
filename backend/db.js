@@ -65,3 +65,37 @@ app.get('/api/productos', async (req, res) => {
 app.listen(port, () => {
   console.log(`Servidor backend corriendo en http://localhost:${port}`);
 });
+
+// Endpoint para actualizar stock
+app.post('/api/productos/update-stock', async (req, res) => {
+  try {
+    const { codigo_barras, cantidad } = req.body;
+    
+    // Primero verificar que el producto existe y tiene suficiente stock
+    const producto = await pool.query(
+      'SELECT * FROM productos WHERE codigo_barras = $1',
+      [codigo_barras]
+    );
+    
+    if (producto.rows.length === 0) {
+      return res.status(404).json({ error: 'Producto no encontrado' });
+    }
+    
+    const stockActual = producto.rows[0].stock;
+    const nuevoStock = stockActual + cantidad;
+    
+    if (nuevoStock < 0) {
+      return res.status(400).json({ error: 'Stock insuficiente' });
+    }
+    
+    // Actualizar el stock
+    const result = await pool.query(
+      'UPDATE productos SET stock = $1 WHERE codigo_barras = $2 RETURNING *',
+      [nuevoStock, codigo_barras]
+    );
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
