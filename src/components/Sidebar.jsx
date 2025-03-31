@@ -10,6 +10,13 @@ import {
 } from "react-icons/fa";
 
 const Sidebar = ({ onViewChange }) => {
+  // Función para manejar el clic en una opción del menú
+  const handleMenuItemClick = (item) => {
+    const view = item.toLowerCase();
+    onViewChange(view);
+  };
+
+  // Opciones del menú con sus respectivos íconos
   const menuItems = [
     { name: "Dashboard", icon: <FaHome />, view: "dashboard" },
     { name: "Cobros", icon: <FaCashRegister />, view: "cobros" },
@@ -21,27 +28,37 @@ const Sidebar = ({ onViewChange }) => {
 
   return (
     <aside className="sidebar">
-      <h2 className="sidebar-title">Menú Principal</h2>
-      
-      <ul className="menu-list">
-        {menuItems.map((item, index) => (
-          <li key={index} className="menu-item">
-            <a 
-              href="#!" 
-              className="menu-link"
-              onClick={() => onViewChange(item.view)}
-            >
-              {item.icon}
-              <span>{item.name}</span>
-            </a>
-          </li>
-        ))}
-      </ul>
+      {/* Encabezado del Sidebar */}
+      <div className="sidebar-header">
+        <h2 className="sidebar-title">Menú Principal</h2>
+      </div>
 
-      <div className="contact-info">
+      {/* Lista de navegación */}
+      <nav className="sidebar-nav">
+        <ul className="menu-list">
+          {menuItems.map((item, index) => (
+            <li 
+              key={index} 
+              className="menu-item"
+              onClick={() => handleMenuItemClick(item.view)}
+            >
+              <div className="menu-link">
+                <span className="menu-icon">{item.icon}</span>
+                <span className="menu-text">{item.name}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      {/* Sección de contacto */}
+      <div className="sidebar-footer">
         <h3 className="contact-title">Contacto</h3>
-        <a href="mailto:soporte@vault4pos.com" className="contact-email">
-          <FaEnvelope />
+        <a 
+          href="mailto:soporte@vault4pos.com" 
+          className="contact-link"
+        >
+          <FaEnvelope className="contact-icon" />
           soporte@vault4pos.com
         </a>
       </div>

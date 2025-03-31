@@ -3,8 +3,15 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const app = express();
 const port = 5000;
+const axios = require('axios');
+const cheerio = require('cheerio');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const cookieParser = require('cookie-parser');
 
-// Configuración de middlewares
+// ==================== CONFIGURACIÓN INICIAL ====================
+
+// Middlewares esenciales (DEBEN IR AL INICIO)
 app.use(express.json({ limit: '10kb' }));
 app.use(cors({
   origin: ['http://localhost:3000'],
@@ -12,6 +19,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+app.use(cookieParser());
+
+// Configuración JWT
+const JWT_SECRET = process.env.JWT_SECRET || 'tu_super_secreto_para_desarrollo';
+const JWT_EXPIRES_IN = '8h';
 
 // Configuración del pool de PostgreSQL
 const pool = new Pool({
@@ -55,6 +67,273 @@ const handleDbError = (err, res) => {
     details: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 };
+
+// ==================== ENDPOINTS DE AUTENTICACIÓN ====================
+
+// Health check mejorado
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ 
+      status: 'OK',
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        auth: '/api/login, /api/check-auth, /api/logout',
+        products: '/api/productos',
+        sales: '/api/salidas'
+      }
+    });
+  } catch (err) {
+    res.status(503).json({
+      status: 'ERROR',
+      database: 'disconnected',
+      error: err.message
+    });
+  }
+});
+
+// Login
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: 'Usuario y contraseña requeridos' });
+    }
+
+    const user = await pool.query(
+      'SELECT id, username, password_hash, rol FROM usuarios WHERE username = $1 AND activo = TRUE',
+      [username]
+    );
+
+    if (user.rows.length === 0) {
+      return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
+    }
+
+    const isValid = await bcrypt.compare(password, user.rows[0].password_hash);
+    if (!isValid) {
+      return res.status(401).json({ success: false, error: 'Credenciales inválidas' });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.rows[0].id,
+        username: user.rows[0].username,
+        rol: user.rows[0].rol
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 8 * 60 * 60 * 1000
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: user.rows[0].id,
+        username: user.rows[0].username,
+        rol: user.rows[0].rol
+      }
+    });
+
+  } catch (err) {
+    console.error('Error en login:', err);
+    res.status(500).json({ success: false, error: 'Error en el servidor' });
+  }
+});
+
+// Logout
+app.post('/api/logout', (req, res) => {
+  res.clearCookie('token');
+  res.json({ success: true });
+});
+
+// Verificar sesión
+app.get('/api/check-auth', async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) {
+      return res.status(401).json({ isAuthenticated: false });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({
+      isAuthenticated: true,
+      user: {
+        id: decoded.id,
+        username: decoded.username,
+        rol: decoded.rol
+      }
+    });
+  } catch (err) {
+    res.status(401).json({ isAuthenticated: false });
+  }
+});
+
+// Middleware de autenticación
+const authenticate = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).json({ error: 'No autorizado' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Sesión inválida o expirada' });
+  }
+};
+
+
+// ==================== ENDPOINTS PARA USUARIOS ====================
+
+// Obtener información del usuario actual
+app.get('/api/users/me', authenticate, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, username, rol, activo, creado_en FROM usuarios WHERE id = $1',
+      [req.user.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    handleDbError(err, res);
+  }
+});
+
+// Obtener todos los usuarios (solo admin)
+app.get('/api/users', authenticate, async (req, res) => {
+  try {
+    // Verificar si el usuario es admin
+    if (req.user.rol !== 'admin') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    
+    const result = await pool.query(
+      'SELECT id, username, rol, activo, creado_en FROM usuarios ORDER BY creado_en DESC'
+    );
+    
+    res.json(result.rows);
+  } catch (err) {
+    handleDbError(err, res);
+  }
+});
+
+// Crear nuevo usuario (solo admin)
+app.post('/api/users', authenticate, async (req, res) => {
+  try {
+    // Verificar permisos
+    if (req.user.rol !== 'admin') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    
+    const { username, password, rol } = req.body;
+    
+    // Validaciones
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+    
+    // Hash de la contraseña
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    
+    const result = await pool.query(
+      `INSERT INTO usuarios 
+       (username, password_hash, rol)
+       VALUES ($1, $2, $3)
+       RETURNING id, username, rol, activo, creado_en`,
+      [username, hashedPassword, rol || 'cajero']
+    );
+    
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    handleDbError(err, res);
+  }
+});
+
+// Actualizar usuario (solo admin)
+app.put('/api/users/:id', authenticate, async (req, res) => {
+  try {
+    // Verificar permisos
+    if (req.user.rol !== 'admin') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+    
+    const { id } = req.params;
+    const { username, rol, activo } = req.body;
+    
+    // Validaciones
+    if (!username && !rol && activo === undefined) {
+      return res.status(400).json({ error: 'Nada que actualizar' });
+    }
+    
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    if (username) {
+      updates.push(`username = $${paramIndex}`);
+      values.push(username);
+      paramIndex++;
+    }
+    
+    if (rol) {
+      updates.push(`rol = $${paramIndex}`);
+      values.push(rol);
+      paramIndex++;
+    }
+    
+    if (activo !== undefined) {
+      updates.push(`activo = $${paramIndex}`);
+      values.push(activo);
+      paramIndex++;
+    }
+    
+    values.push(id);
+    
+    const query = `
+      UPDATE usuarios
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING id, username, rol, activo, creado_en
+    `;
+    
+    const result = await pool.query(query, values);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    handleDbError(err, res);
+  }
+});
+
+
+// ==================== ENDPOINTS EXISTENTES (SIN MODIFICACIONES) ====================
+
+
+
+
+
 
 // Endpoint para búsqueda de productos
 app.get('/api/productos/buscar', async (req, res) => {
@@ -124,6 +403,7 @@ app.post('/api/productos/update-stock', async (req, res) => {
   }
 });
 
+// Resto de tus endpoints existentes (productos, salidas, google trends)
 // ==================== ENDPOINTS PARA PRODUCTOS (INVENTARIO) ====================
 app.get('/api/productos', async (req, res) => {
   try {
@@ -291,17 +571,27 @@ app.get('/api/salidas', async (req, res) => {
   }
 });
 
-// ==================== ENDPOINTS ADICIONALES ====================
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date() });
-});
+// ... [Mantén exactamente el mismo código que ya tenías para estos endpoints]
 
-// Manejo de rutas no encontradas
+// ==================== MANEJO DE ERRORES ====================
+
+// Ruta no encontrada
 app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint no encontrado', path: req.path });
+  res.status(404).json({ 
+    error: 'Endpoint no encontrado',
+    path: req.path,
+    availableEndpoints: [
+      '/api/health',
+      '/api/login',
+      '/api/check-auth',
+      '/api/logout',
+      '/api/productos',
+      '/api/salidas'
+    ]
+  });
 });
 
-// Manejador centralizado de errores
+// Manejador global de errores
 app.use((err, req, res, next) => {
   console.error('Error no manejado:', err);
   res.status(500).json({ 
@@ -310,9 +600,11 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Iniciar servidor
+// ==================== INICIAR SERVIDOR ====================
+
 const server = app.listen(port, () => {
-  console.log(`Servidor backend corriendo en http://localhost:${port}`);
+  console.log(`✅ Servidor backend corriendo en http://localhost:${port}`);
+  console.log(`🔍 Health check disponible en http://localhost:${port}/api/health`);
 });
 
 // Manejo de cierre
@@ -334,4 +626,4 @@ process.on('SIGINT', () => {
   });
 });
 
-module.exports = { app, pool };
+module.exports = { app, pool, authenticate }; // Exportamos el middleware para usarlo en otros archivos
