@@ -140,5 +140,5 @@ const App = () => {
     </BrowserRouter>
   );
 };
-
+export { AuthContext };
 export default App;
